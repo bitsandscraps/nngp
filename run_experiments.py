@@ -39,6 +39,8 @@ import gpr
 import load_dataset
 import nngp
 
+from clfw.mnist import PermutedMnist
+
 tf.logging.set_verbosity(tf.logging.INFO)
 
 flags = tf.app.flags
@@ -117,11 +119,11 @@ def run_nngp_eval(hparams, run_dir):
   # Get the sets of images and labels for training, validation, and
   # # test on dataset.
   if FLAGS.dataset == 'mnist':
-    (train_image, train_label, valid_image, valid_label, test_image,
-     test_label) = load_dataset.load_mnist(
-         num_train=FLAGS.num_train,
-         mean_subtraction=True,
-         random_roated_labels=False)
+      pm = PermutedMnist(1)
+      train_image = pm.training_sets[0].features
+      train_label = np.eye(10)[pm.training_sets[0].labels]
+      test_image = pm.test_sets[0].features
+      test_label = np.eye(10)[pm.test_sets[0].labels]
   else:
     raise NotImplementedError
 
@@ -153,6 +155,7 @@ def run_nngp_eval(hparams, run_dir):
     model = gpr.GaussianProcessRegression(
         train_image, train_label, kern=nngp_kernel)
 
+
     start_time = time.time()
     tf.logging.info('Training')
 
@@ -172,13 +175,13 @@ def run_nngp_eval(hparams, run_dir):
       tf.logging.info('Evaluation of training set (%d examples) took '
                       '%.3f secs'%(1000, time.time() - start_time))
 
-    start_time = time.time()
-    tf.logging.info('Validation')
-    acc_valid, mse_valid, norm_valid, _ = do_eval(
-        sess, model, valid_image[:FLAGS.num_eval],
-        valid_label[:FLAGS.num_eval])
-    tf.logging.info('Evaluation of valid set (%d examples) took %.3f secs'%(
-        FLAGS.num_eval, time.time() - start_time))
+#     start_time = time.time()
+#     tf.logging.info('Validation')
+#     acc_valid, mse_valid, norm_valid, _ = do_eval(
+#         sess, model, valid_image[:FLAGS.num_eval],
+#         valid_label[:FLAGS.num_eval])
+#     tf.logging.info('Evaluation of valid set (%d examples) took %.3f secs'%(
+#         FLAGS.num_eval, time.time() - start_time))
 
     start_time = time.time()
     tf.logging.info('Test')
@@ -195,9 +198,9 @@ def run_nngp_eval(hparams, run_dir):
       'train_acc': float(acc_train),
       'train_mse': float(mse_train),
       'train_norm': float(norm_train),
-      'valid_acc': float(acc_valid),
-      'valid_mse': float(mse_valid),
-      'valid_norm': float(norm_valid),
+#       'valid_acc': float(acc_valid),
+#       'valid_mse': float(mse_valid),
+#       'valid_norm': float(norm_valid),
       'test_acc': float(acc_test),
       'test_mse': float(mse_test),
       'test_norm': float(norm_test),
@@ -206,8 +209,10 @@ def run_nngp_eval(hparams, run_dir):
 
   record_results = [
       FLAGS.num_train, hparams.nonlinearity, hparams.weight_var,
-      hparams.bias_var, hparams.depth, acc_train, acc_valid, acc_test,
-      mse_train, mse_valid, mse_test, final_eps
+#       hparams.bias_var, hparams.depth, acc_train, acc_valid, acc_test,
+#       mse_train, mse_valid, mse_test, final_eps
+      hparams.bias_var, hparams.depth, acc_train, acc_test,
+      mse_train, mse_test, final_eps
   ]
   if nngp_kernel.use_fixed_point_norm:
     metrics['var_fixed_point'] = float(nngp_kernel.var_fixed_point_np[0])
